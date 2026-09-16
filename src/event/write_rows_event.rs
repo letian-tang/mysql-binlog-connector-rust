@@ -22,11 +22,25 @@ impl WriteRowsEvent {
         // refer: https://mariadb.com/kb/en/rows_event_v1v2-rows_compressed_event_v1/
         let (table_id, _column_count, included_columns) =
             EventHeader::parse_rows_event_common_header(cursor, row_event_version)?;
-        let table_map_event = table_map_event_by_table_id.get(&table_id).unwrap();
+        // When the dump starts mid-transaction, the Table_map event for this table
+        // is not part of the current stream. We cannot decode rows without it;
+        // return an empty row set so the consumer can skip this event instead of
+        // panicking. Complete rows for the same table will arrive with a fresh
+        // Table_map in a later transaction.
+        let table_map_event = match table_map_event_by_table_id.get(&table_id) {
+            Some(tm) => tm.clone(),
+            None => {
+                return Ok(Self {
+                    table_id,
+                    included_columns,
+                    rows: Vec::new(),
+                });
+            }
+        };
 
         let mut rows: Vec<RowEvent> = Vec::new();
         while cursor.available() > 0 {
-            let row = RowEvent::parse(cursor, table_map_event, &included_columns)?;
+            let row = RowEvent::parse(cursor, &table_map_event, &included_columns)?;
             rows.push(row);
         }
 

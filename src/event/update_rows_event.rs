@@ -23,12 +23,24 @@ impl UpdateRowsEvent {
         let (table_id, column_count, included_columns_before) =
             EventHeader::parse_rows_event_common_header(cursor, row_event_version)?;
         let included_columns_after = cursor.read_bits(column_count, false)?;
-        let table_map_event = table_map_event_by_table_id.get(&table_id).unwrap();
+        // Same as WriteRows: a mid-transaction dump start may miss the Table_map;
+        // return an empty row set instead of panicking.
+        let table_map_event = match table_map_event_by_table_id.get(&table_id) {
+            Some(tm) => tm.clone(),
+            None => {
+                return Ok(Self {
+                    table_id,
+                    included_columns_before,
+                    included_columns_after,
+                    rows: Vec::new(),
+                });
+            }
+        };
 
         let mut rows: Vec<(RowEvent, RowEvent)> = Vec::new();
         while cursor.available() > 0 {
-            let before = RowEvent::parse(cursor, table_map_event, &included_columns_before)?;
-            let after = RowEvent::parse(cursor, table_map_event, &included_columns_after)?;
+            let before = RowEvent::parse(cursor, &table_map_event, &included_columns_before)?;
+            let after = RowEvent::parse(cursor, &table_map_event, &included_columns_after)?;
             rows.push((before, after));
         }
 

@@ -22,7 +22,13 @@ impl RowEvent {
         table_map_event: &TableMapEvent,
         included_columns: &[bool],
     ) -> Result<Self, BinlogError> {
-        let null_columns = cursor.read_bits(included_columns.len(), false)?;
+        // Per MySQL binlog spec, the null bitmap covers only the columns present
+        // in the event (bits set in included_columns), NOT all table columns.
+        // Sizing it by included_columns.len() over-reads when binlog_row_image=MINIMAL
+        // (or any partial column set) leaves gaps, shifting every following byte
+        // and eventually hitting EOF.
+        let included_column_count = included_columns.iter().filter(|&&b| b).count();
+        let null_columns = cursor.read_bits(included_column_count, false)?;
         let mut column_values = Vec::with_capacity(table_map_event.column_types.len());
         let mut skipped_column_count = 0;
         for i in 0..table_map_event.column_types.len() {
