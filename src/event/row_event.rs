@@ -65,3 +65,38 @@ impl RowEvent {
         Ok(Self { column_values })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn null_bitmap_uses_only_included_columns() {
+        let table_map = TableMapEvent {
+            table_id: 42,
+            database_name: "test".to_string(),
+            table_name: "items".to_string(),
+            column_types: vec![
+                ColumnType::Long as u8,
+                ColumnType::Long as u8,
+                ColumnType::Long as u8,
+            ],
+            column_metas: vec![0, 0, 0],
+            null_bits: vec![true, true, true],
+            table_metadata: None,
+        };
+        let included_columns = vec![true, false, true];
+        // The two included columns need a one-byte NULL bitmap. The second
+        // included column is NULL, followed only by the first LONG value.
+        let data = vec![0b0000_0010, 42, 0, 0, 0];
+        let mut cursor = Cursor::new(&data);
+
+        let row = RowEvent::parse(&mut cursor, &table_map, &included_columns).unwrap();
+
+        assert_eq!(
+            row.column_values,
+            vec![ColumnValue::Long(42), ColumnValue::None, ColumnValue::None]
+        );
+        assert_eq!(cursor.position(), data.len() as u64);
+    }
+}

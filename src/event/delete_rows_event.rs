@@ -21,22 +21,15 @@ impl DeleteRowsEvent {
     ) -> Result<Self, BinlogError> {
         let (table_id, _column_count, included_columns) =
             EventHeader::parse_rows_event_common_header(cursor, row_event_version)?;
-        // Same as WriteRows: a mid-transaction dump start may miss the Table_map;
-        // return an empty row set instead of panicking.
-        let table_map_event = match table_map_event_by_table_id.get(&table_id) {
-            Some(tm) => tm.clone(),
-            None => {
-                return Ok(Self {
-                    table_id,
-                    included_columns,
-                    rows: Vec::new(),
-                });
-            }
-        };
+        let table_map_event = table_map_event_by_table_id.get(&table_id).ok_or_else(|| {
+            BinlogError::UnexpectedData(format!(
+                "missing Table_map event for table_id {table_id}; rows cannot be decoded"
+            ))
+        })?;
 
         let mut rows: Vec<RowEvent> = Vec::new();
         while cursor.available() > 0 {
-            let row = RowEvent::parse(cursor, &table_map_event, &included_columns)?;
+            let row = RowEvent::parse(cursor, table_map_event, &included_columns)?;
             rows.push(row);
         }
 
@@ -45,5 +38,25 @@ impl DeleteRowsEvent {
             included_columns,
             rows,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_table_map_returns_error() {
+        let data = vec![42, 0, 0, 0, 0, 0, 0, 0, 1, 1];
+        let mut cursor = Cursor::new(&data);
+        let mut table_maps = HashMap::new();
+
+        let error = DeleteRowsEvent::parse(&mut cursor, &mut table_maps, 1).unwrap_err();
+
+        assert!(matches!(
+            error,
+            BinlogError::UnexpectedData(message)
+                if message.contains("table_id 42") && message.contains("cannot be decoded")
+        ));
     }
 }
