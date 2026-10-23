@@ -4,6 +4,12 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::{binlog_error::BinlogError, ext::cursor_ext::CursorExt};
 
+/// MySQL 握手初始化包（Initial Handshake Packet）解析结果。
+///
+/// `protocol_version` / `server_version` / `thread_id` / `server_status` 为
+/// 线上协议字段，解析保留以完整还原报文、供下游诊断使用；认证流程只消费
+/// capabilities / collation / scramble / plugin 数据。
+#[allow(dead_code)] // 协议字段：保留完整性，认证流程不消费
 pub struct GreetingPacket {
     pub protocol_version: u8,
     pub server_version: String,

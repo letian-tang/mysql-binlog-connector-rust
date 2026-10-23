@@ -4,7 +4,12 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::{binlog_error::BinlogError, ext::cursor_ext::CursorExt};
 
+/// MySQL ERR packet（协议 0xFF 帧的解析结果）。
+///
+/// `error_code` / `sql_state` 为线上协议字段，解析保留以完整还原报文、
+/// 供下游诊断使用；连接器自身目前只消费 `error_message`。
 #[derive(Debug)]
+#[allow(dead_code)] // 协议字段：保留完整性，非本连接器消费
 pub struct ErrorPacket {
     pub error_code: u16,
     pub sql_state: String,
