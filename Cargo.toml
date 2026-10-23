@@ -7,7 +7,7 @@ members = [
 [package]
 edition = "2021"
 name = "mysql-binlog-connector-rust"
-version = "0.3.5"
+version = "0.3.6"
 categories = ["database"]
 description = "mysql binlog connector"
 documentation = "https://docs.rs/mysql-binlog-connector-rust"
@@ -40,7 +40,7 @@ percent-encoding = "2.3.1"
 async-recursion = "1.0.2"
 lazy_static = "1.4.0"
 thiserror = "1.0.44"
-mysql_common = "0.37.3"
+mysql_common = "0.38.2"
 base64 = "0.22.1"
 log = "0.4.26"
 socket2 = "0.6.1"

@@ -2,6 +2,10 @@ English | [中文](README_ZH.md)
 
 # mysql-binlog-connector-rust
 
+## Maintained fork release 0.3.6-nimbus.1
+
+Package version 0.3.6 updates `mysql_common` to 0.38.2. RSA authentication now propagates invalid-key and OAEP encryption failures as `BinlogError::AuthenticationEncryption` instead of panicking. Binlog parsing and replay behavior remain based on the Nimbus 0.3.5 tag. The existing 0.3.6 tag is preserved; use Git tag `0.3.6-nimbus.1` for this release.
+
 ## Overview
 
 - A simple but strong lib to dump mysql binlog (binlog_format=ROW) and parse Row Based Replication Events in RUST with async IO.

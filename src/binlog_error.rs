@@ -2,6 +2,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum BinlogError {
+    #[error("authentication encryption error: {0}")]
+    AuthenticationEncryption(#[from] mysql_common::crypto::Error),
+
     #[error("unsupported column type: {0}")]
     UnsupportedColumnType(String),
 
